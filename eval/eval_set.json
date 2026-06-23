@@ -1,0 +1,14 @@
+[
+  {
+    "question": "Am I eligible for Namo Shetkari if I own 3 acres of cultivable land?",
+    "expected_scheme": "Namo Shetkari Mahasanman Nidhi Yojana"
+  },
+  {
+    "question": "What are the core guidelines or criteria for the Mukhyamantri Jan-Van Scheme?",
+    "expected_scheme": "Mukhyamantri Jan-Van Scheme"
+  },
+  {
+    "question": "Can farmers in Assam get farm machinery assistance under the Mukhya Mantri Krishi Sa Sajuli Yozana?",
+    "expected_scheme": "Mukhya Mantri Krishi Sa Sajuli Yozana - Assam"
+  }
+]
