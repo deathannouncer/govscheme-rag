@@ -1,98 +1,217 @@
 # Government Scheme RAG
 
-Agentic, hybrid-search RAG system over Indian government scheme data:
-query rewriting, vector + full-text hybrid retrieval, RRF fusion,
-cross-encoder reranking, an agent loop that decides whether to retrieve
-again, and a Redis semantic cache.
+An agentic, hybrid-search RAG system over Indian government scheme data.
+Every architectural choice below exists because a simpler version of it
+broke during development - this README describes what's actually running,
+not an idealized version of it.
+
+---
 
 ## Architecture
 
 ```
-question -> rewrite -> hybrid search (vector + full-text) -> RRF fusion
-  -> rerank -> agent judges "enough context?" -> loop or generate -> answer
+User Question
+     │
+     ▼
+[ Redis Semantic Cache ] ──(hit, cosine sim ≥ 0.92)──> Cached Answer + Sources
+     │ (miss)
+     ▼
+[ LLM Query Rewrite ] ── original question + rewrite, both kept ──┐
+     │                                                            │
+     ▼                                                            │
+[ Hybrid Search per query: Vector (Milvus) + Full-Text (Postgres) ] <─┘
+     │
+     ▼
+[ Reciprocal Rank Fusion across all query × search-type lists ]
+     │
+     ▼
+[ Cross-Encoder Rerank against the ORIGINAL question ]
+     │
+     ▼
+[ Agent: "enough context?" ] ──no, loops remain──> [ LLM writes a genuinely
+     │                                               different follow-up query ]
+     │                                                       │
+     ▼ yes, or loops exhausted                               │
+[ Grounded Answer Generation ]                                │
+     │                                                        │
+     ▼                                                        │
+Answer + Sources + Context ──> cached for next time            │
+                                                                │
+        (new query appended, loop back to Hybrid Search) <────┘
 ```
 
-Caching wraps the whole flow: a query that's semantically close to a past
-one returns the cached answer without touching retrieval at all.
+Both the original question *and* the LLM's rewrite are searched on every
+pass, never just the rewrite alone - an LLM rewrite "correcting" an
+unusual scheme name into a more common-sounding one (a real failure mode
+hit during testing) would otherwise silently destroy retrieval for it.
+Reranking is scored against the original question specifically, not the
+rewrite, so a bad rewrite can't bias relevance scoring either.
+
+---
+
+## Key design decisions (and the bugs that motivated them)
+
+- **Scheme name is prefixed into every chunk's content** before it's
+  indexed or embedded. Many scheme descriptions never restate their own
+  name in the body text - without the prefix, full-text search has no
+  way to use the single most identifying word in a user's question, no
+  matter how it's phrased.
+- **Full-text tokenization splits on punctuation** rather than rejecting
+  any token containing it. A naive `isalnum()` filter silently dropped
+  hyphenated terms like "Jan-Van" entirely, which made full-text search
+  fall back to matching on whatever generic word was left.
+- **The cache key is the original question's embedding**, not the
+  rewrite's. Caching against the rewrite meant identical repeated
+  questions could still miss the cache, since the LLM rewrite isn't
+  guaranteed to produce identical text twice.
+- **All LLM calls run at temperature 0** with a capped `num_predict`.
+  Non-zero temperature made eval results genuinely irreproducible (the
+  same question could pass on one run and fail on the next); the token
+  cap exists because an uncapped generation that degenerates into a
+  repetition loop can cascade into a full-text query with thousands of
+  OR'd terms, which is slow for Postgres to parse.
+- **The agent retry loop appends a new query rather than re-running the
+  same one.** The original version re-issued an identical search on
+  retry, which can never surface anything new - it was latency cost with
+  no retrieval benefit.
+- **The answer generator is tuned to under-claim, not over-claim**, when
+  eligibility text doesn't state a limit (e.g. no acreage cap mentioned
+  for a scheme). Caught by the faithfulness eval, kept deliberately:
+  vague-but-honest is the safer failure direction for a benefits chatbot
+  than confidently inventing a threshold that was never stated.
+
+---
+
+## Tech stack
+
+- **Backend:** FastAPI, Python, Uvicorn
+- **LLM:** Ollama, local (`qwen2.5:7b-instruct` by default - swap via `.env`)
+- **Vector search:** Milvus standalone, via `MilvusClient`
+- **Embeddings:** `google/embeddinggemma-300m`
+- **Reranker:** `Qwen/Qwen3-Reranker-0.6B` (cross-encoder)
+- **Full-text search:** Postgres `tsvector`/`tsquery`
+- **Cache:** Redis (semantic, cosine-similarity lookup)
+- **Frontend:** Streamlit
+
+---
 
 ## Setup
 
-1. **Get the dataset.** Download the myScheme dataset from either:
-   - https://huggingface.co/datasets/shrijayan/gov_myscheme
-   - https://www.kaggle.com/datasets/jainamgada45/indian-government-schemes
-
-   Save it as `data/schemes.json` or `data/schemes.csv`. Check the column
-   headers against `FIELD_MAP` in `scripts/ingest.py` first - the two
-   sources use slightly different column names.
+1. **Get the dataset.** Download the myScheme dataset from
+   [Hugging Face](https://huggingface.co/datasets/shrijayan/gov_myscheme) or
+   [Kaggle](https://www.kaggle.com/datasets/jainamgada45/indian-government-schemes),
+   save as `data/schemes.json` or `data/schemes.csv`. Check the column
+   headers against `FIELD_MAP` in `scripts/ingest.py` first - sources use
+   different column names.
 
 2. **Start infra:**
-   ```
+   ```powershell
    docker compose up -d
    ```
-   Starts Postgres, Redis, and Milvus (with etcd + minio as
-   dependencies). Give Milvus ~30s to finish starting before the next steps.
+   Starts Postgres, Redis, and Milvus (with etcd + minio). Give Milvus
+   ~30s to finish starting. Containers are configured with
+   `restart: unless-stopped`, but Docker Desktop itself still needs to be
+   running - if you get a connection-refused error later, this is almost
+   always why.
 
-3. **Pull a local LLM via Ollama** (install separately if needed:
-   https://ollama.com):
-   ```
+3. **Pull a local LLM** ([Ollama](https://ollama.com)):
+   ```powershell
+   ollama serve
    ollama pull qwen2.5:7b-instruct
    ```
-   Or change `OLLAMA_MODEL` in `.env` to whatever you've pulled.
+   `ollama serve` needs to be running in its own terminal whenever you
+   use the system - it's a separate background process from Docker.
 
 4. **Python environment:**
-   ```
+   ```powershell
    python -m venv venv
-   source venv/bin/activate
+   .\venv\Scripts\Activate.ps1
    pip install -r requirements.txt
-   cp .env.example .env
+   Copy-Item .env.example .env
    ```
 
-5. **Ingest + embed:**
-   ```
-   python scripts/ingest.py --file data/schemes.json
+5. **Ingest, then embed** (order matters - `embed_index.py` reads from
+   the table `ingest.py` creates):
+   ```powershell
+   python scripts/ingest.py --file data/schemes.csv
    python scripts/embed_index.py
    ```
 
-6. **Run the API:**
-   ```
-   uvicorn app.main:app --reload
-   ```
-
-7. **Try it:**
-   ```
-   curl -X POST localhost:8000/query -H "Content-Type: application/json" \
-     -d '{"question": "Am I eligible for PM Kisan if I own 3 acres?"}'
+6. **Run the API** (own terminal, restrict the reload watcher so editing
+   scripts/eval files doesn't trigger pointless restarts):
+   ```powershell
+   uvicorn app.main:app --reload --reload-dir app
    ```
 
-8. **Evaluate:**
+7. **Run the frontend** (separate terminal):
+   ```powershell
+   streamlit run streamlit_app.py
    ```
-   python eval/run_eval.py
-   ```
-   Update `eval/eval_set.json` with real scheme names once you've looked
-   at the actual dataset content.
 
-## Notes / known rough edges
+---
 
-- `EMBED_DIM` in `scripts/embed_index.py` assumes EmbeddingGemma-300M's
-  output dimension - verify against the model card if collection creation
-  fails.
-- Exact HF repo IDs for `EMBEDDING_MODEL` / `RERANKER_MODEL` in `.env` -
-  double check these resolve on Hugging Face before running
-  `embed_index.py`; naming may have shifted.
-- The Redis cache does a brute-force similarity scan - fine at this scale.
-  A production version would use RediSearch's vector index instead.
-- `app/db.py`'s full-text tokenizer is intentionally naive (ORs the query
-  terms). Tune if full-text results look too noisy.
-- This hasn't been run end-to-end yet - the pieces are individually
-  straightforward, but expect a couple of integration snags (model load
-  errors, dimension mismatches) on first run. That's normal for a fresh
-  scaffold, not a sign something's fundamentally wrong.
-- Known behavior (not a bug): the answer generation step sometimes
-  under-claims rather than over-claims - e.g. for a scheme whose
-  eligibility text states no acreage limit, it may say it "can't
-  conclude" eligibility rather than inferring that no stated limit means
-  no limit applies. This was caught by an LLM-judge faithfulness eval
-  (see `eval/run_faithfulness_eval.py`) and left as-is deliberately:
-  vague-but-honest is the safer failure direction for this kind of
-  application, compared to confidently fabricating a threshold that was
-  never stated.
+## Evaluation
+
+Three scripts, each testing a different failure mode:
+
+| Script | What it checks |
+| --- | --- |
+| `eval/run_eval.py` | Retrieval recall - does the right scheme end up in the sources? Also measures cold vs. warm cache latency. |
+| `eval/run_faithfulness_eval.py` | Is the generated answer actually grounded in the retrieved context, or does it embellish? |
+| `eval/run_adversarial_eval.py` | Does it correctly decline on fictional schemes, out-of-domain questions, and eligibility-contradiction traps, instead of hallucinating a confident answer? |
+
+```powershell
+python eval/run_eval.py
+python eval/run_faithfulness_eval.py
+python eval/run_adversarial_eval.py
+```
+
+`run_eval.py` defaults to `eval/eval_set.json` (3 hand-written questions).
+A larger, auto-generated set exists at `eval/eval_set_generated.json` (25
+questions, sampled from real scheme data and written by the local LLM) -
+run it with `--eval-set eval/eval_set_generated.json`. **These two have
+not yet been merged into one file** - that's a known TODO, not done yet,
+so don't quote a single "n=28" recall number until they are.
+
+Caveat worth keeping in mind: the faithfulness and adversarial judges are
+the same local LLM doing the generation, just prompted differently. That
+makes them a useful second opinion for catching obvious problems, not an
+independent ground truth.
+
+---
+
+## Results observed so far
+
+These are what's actually been measured, across multiple separate runs -
+reported as ranges because that's what was observed, not a single
+cherry-picked number:
+
+| Metric | Result |
+| --- | --- |
+| Retrieval recall, 3 hand-written questions | 1.00, consistent across multiple runs |
+| Retrieval recall, 25 auto-generated questions | 1.00, consistent across two separate runs |
+| Adversarial pass rate (8 questions: fictional schemes, out-of-domain, eligibility traps) | 8/8 |
+| Faithfulness, 3 hand-written questions | 2/3 - the one failure is the documented under-claiming behavior above, not fabrication |
+| Cold-cache latency (full pipeline, local 7B model on CPU) | ~10s to ~95s per query, varies by question and by run |
+| Warm-cache latency (Redis hit) | ~100ms to ~1s |
+| Cache speedup | Observed between ~75x and ~230x across different runs |
+
+The auto-generated question set skews easier than real usage, since the
+questions are written from the same eligibility text the retriever
+searches over - the 3 hand-written questions (abbreviated names, indirect
+phrasing) are the more realistic stress test of the two.
+
+---
+
+## Known limitations
+
+- Eval sets not yet merged (see above).
+- `official_link` for the Kaggle dataset variant is reconstructed from a
+  `slug` field, since that source has no direct link column - best-effort,
+  not guaranteed correct for every scheme.
+- Latency is dominated by local LLM inference (2-4 calls per query), not
+  retrieval - hardware-dependent, will look very different on a machine
+  with a GPU Ollama can actually use versus CPU-only.
+- The Redis cache does a brute-force cosine-similarity scan over stored
+  entries - fine at this scale, would need RediSearch's vector index to
+  scale further.
