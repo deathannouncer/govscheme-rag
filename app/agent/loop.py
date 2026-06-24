@@ -19,6 +19,18 @@ Question: {question}
 Retrieved context:
 {context}"""
 
+REFINE_PROMPT = """The context retrieved so far does not fully answer the question.
+Write ONE new, different search query that might surface the missing
+information - approach it from a different angle than before (different
+keywords, a related concept, or a more specific aspect of the question).
+Do NOT just repeat the original question or rephrase it the same way.
+Return ONLY the new query, nothing else.
+
+Question: {question}
+
+Context retrieved so far:
+{context}"""
+
 ANSWER_PROMPT = """Answer the question using ONLY the context below. Cite the scheme
 name for every claim. If the context doesn't contain the answer, say so plainly.
 
@@ -36,13 +48,14 @@ def _format_context(chunks: list[dict]) -> str:
 
 def answer_question(question: str) -> dict:
     rewritten = llm.chat(REWRITE_PROMPT.format(question=question))
+    queries = [question, rewritten]
 
     all_chunks: list[dict] = []
     seen_ids: set[int] = set()
     reranked: list[dict] = []
 
-    for _ in range(config.MAX_AGENT_LOOPS):
-        candidates = multi_query_hybrid_search([question, rewritten])
+    for loop_i in range(config.MAX_AGENT_LOOPS):
+        candidates = multi_query_hybrid_search(queries)
         new_chunks = [c for c in candidates if c["id"] not in seen_ids]
         all_chunks.extend(new_chunks)
         seen_ids.update(c["id"] for c in new_chunks)
@@ -56,8 +69,15 @@ def answer_question(question: str) -> dict:
         if verdict.startswith("YES"):
             break
 
+        is_last_loop = loop_i == config.MAX_AGENT_LOOPS - 1
+        if not is_last_loop:
+            refined = llm.chat(REFINE_PROMPT.format(question=question, context=context)).strip()
+            queries.append(refined)
+
     final_context = _format_context(reranked)
-    answer = llm.chat(ANSWER_PROMPT.format(question=question, context=final_context))
+    answer = llm.chat(
+        ANSWER_PROMPT.format(question=question, context=final_context), max_tokens=600
+    )
 
     sources = [
         {"scheme_name": c["scheme_name"], "official_link": c["official_link"]} for c in reranked

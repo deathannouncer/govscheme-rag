@@ -26,13 +26,9 @@ def fetch_chunks_by_id(chunk_ids: list[int]) -> dict[int, dict]:
 
 
 def to_tsquery_safe(query: str) -> str:
-    # Extract word characters only, splitting on hyphens/punctuation so a
-    # term like "Jan-Van" becomes two valid tsquery tokens instead of being
-    # dropped entirely (the old isalnum() check rejected any token
-    # containing a hyphen, apostrophe, or trailing punctuation - which
-    # silently threw away the most distinctive words in scheme names).
     words = re.findall(r"[A-Za-z0-9]+", query)
-    return " | ".join(words) if words else query
+    unique_words = list(dict.fromkeys(words))[:30]
+    return " | ".join(unique_words) if unique_words else query
 
 
 def fulltext_search(query: str, top_k: int) -> list[tuple[int, float]]:

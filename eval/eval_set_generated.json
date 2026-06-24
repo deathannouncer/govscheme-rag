@@ -1,0 +1,102 @@
+[
+  {
+    "question": "Can I apply for assistance under the Dr.Babasaheb Ambedkar Udyog Uday Yojana if my small business, run by an ST entrepreneur, recently paid for a new power connection outside a GIDC area?",
+    "expected_scheme": "Dr.Babasaheb Ambedkar Udyog Uday Yojana: Assistance for Power Connection Charges"
+  },
+  {
+    "question": "If I'm a registered folk artist with no dues and my child is studying in a government school, do we qualify for the Education Assistance - Folk Artist scheme?",
+    "expected_scheme": "Education Assistance - Folk Artist"
+  },
+  {
+    "question": "Can I apply for the Financial Assistance for Funeral Expenses if my father was a registered worker with the Jammu and Kashmir Building & Other Construction Workers Welfare Board and he passed away recently?",
+    "expected_scheme": "Financial Assistance for Funeral Expenses (JKBOCWWB)"
+  },
+  {
+    "question": "Am I eligible for the INDIRAMMA Widow Pension if I am a widow living in an urban area of Andhra Pradesh, from a BPL family, and have been a local resident for more than 5 years?",
+    "expected_scheme": "INDIRAMMA Widow Pension (Urban)"
+  },
+  {
+    "question": "If I registered with the Gujarat Building and Other Construction Worker\u2019s Welfare Board last month and bought a lithium-ion battery high-speed vehicle, can I apply for the Go-Green Shramik Scheme?",
+    "expected_scheme": "Go-Green Shramik Scheme (GBOCWWB)"
+  },
+  {
+    "question": "Do I qualify for the Junior Hostel (Scheduled Tribes) scheme if I am from Madhya Pradesh, belong to the Scheduled Tribe category, am currently in 7th grade, and attend a government school?",
+    "expected_scheme": "Junior Hostel (Scheduled Tribes)"
+  },
+  {
+    "question": "Can I apply for the Mukhya Mantri Mahila Sashaktikaran Yojana if I am an abandoned woman from a low-income background?",
+    "expected_scheme": "Mukhya Mantri Mahila Sashaktikaran Yojana"
+  },
+  {
+    "question": "Do I qualify for Mukhymantri Sarthi Yojana if I am a 22-year-old woman from Jharkhand?",
+    "expected_scheme": "Mukhymantri Sarthi Yojana - Jharkhand"
+  },
+  {
+    "question": "Do I qualify for this scheme if my father is a construction worker, he is registered in our district, and I have won a sports award from the Sports Department?",
+    "expected_scheme": "Nirmaan Shramik  ke Bachchon Hetu  Utkrasht Khel Protsaahan Yojana"
+  },
+  {
+    "question": "Can a registered society that has been functioning for more than three years but is not currently affiliated with any university still apply for this scheme?",
+    "expected_scheme": "Scheme Of Financial Assistance For The Preservation And Development Of Cultural Heritage Of The Himalayas"
+  },
+  {
+    "question": "Do I qualify for the Scheme for Assistance on Purchase of Smartphone by the Farmers if I am a tenant farmer in Gujarat with more than one account?",
+    "expected_scheme": "Scheme for Assistance on Purchase of Smartphone by the Farmers"
+  },
+  {
+    "question": "Am I eligible for the Silpi Pension Scheme if I am a permanent resident of Assam and have made significant contributions to Dance?",
+    "expected_scheme": "Silpi Pension Scheme - Assam"
+  },
+  {
+    "question": "Do I qualify for this Spices Development scheme if I'm a bonafide farmer in Meghalaya with my own land that's about 0.2 hectares?",
+    "expected_scheme": "Spices Development Ginger, Turmeric, Black Pepper, Cardamom, Coriander, Cinnamon and Chillies"
+  },
+  {
+    "question": "If I get admitted to an Agricultural University outside my home state and plan to study full-time, would I be eligible for the National Talent Scholarship Postgraduate?",
+    "expected_scheme": "National Talent Scholarship Postgraduate"
+  },
+  {
+    "question": "Do I qualify for the Strengthening Skills, Arts and Employment through ITIs scheme if I am from a De-notified, Nomadic, or Semi-Nomadic community in Madhya Pradesh, not an income taxpayer, and my education meets the course requirements?",
+    "expected_scheme": "Strengthening Skills, Arts and Employment through ITIs"
+  },
+  {
+    "question": "Am I eligible for the Unemployment Allowance if I am 30 years old, have a higher secondary degree from Chhattisgarh, and am registered in a District Employment and Self-Employment Guidance Center there for over two years?",
+    "expected_scheme": "Unemployment Allowance"
+  },
+  {
+    "question": "Can I apply for the TDPS PDSTG mechanization scheme if I'm a member of a self-help group?",
+    "expected_scheme": "Tea Development and Promotion Scheme (TDPS): Plantation Development for Small Tea Growers (PDSTG): Mechanization for Individual Small Growers"
+  },
+  {
+    "question": "Can I apply for the State Technical Scholarship if my parents earn less than \u20b96 lakhs annually and I am a Scheduled Tribe student from Nagaland pursuing an engineering diploma?",
+    "expected_scheme": "State Technical Scholarship for ST Student"
+  },
+  {
+    "question": "If my small business recently listed on the SME Exchange, do I qualify for assistance under the Aatmanirbhar Gujarat Scheme?",
+    "expected_scheme": "Aatmanirbhar Gujarat Scheme for assistance to MSMEs: Assistance for Raising Capital through SME Exchange"
+  },
+  {
+    "question": "Do I qualify for the Abua Awas Yojana if my house is made of mud and I am part of a specially vulnerable tribal group?",
+    "expected_scheme": "Abua Awas Yojana"
+  },
+  {
+    "question": "If I'm a girl from a rural area with a \"Gaon Ki Beti\" certificate, secured 60% in my 12th standard, and am enrolled in a recognized college, do I qualify for the Gaon Ki Beti scheme?",
+    "expected_scheme": "Gaon Ki Beti"
+  },
+  {
+    "question": "Can I apply for the Capital Investment Subsidy Scheme if my business is a private limited company registered in Goa and has been operating there for over a year, with Goan Diaspora ownership and at least 15 employees, mostly of Goan origin?",
+    "expected_scheme": "Capital Investment Subsidy Scheme for Goan Diaspora"
+  },
+  {
+    "question": "If I've been doing volunteer work in Chhattisgarh for the past 10 years, focusing on education and healthcare, would I be eligible for the Danveer Bhamashah Honors?",
+    "expected_scheme": "Danveer Bhamashah Honors- Chhattisgarh"
+  },
+  {
+    "question": "Am I eligible for the IGSTC Industrial Fellowship if I am a 29-year-old PhD student who has completed one year of my PhD and is looking to do an industrial exposure in Germany?",
+    "expected_scheme": "IGSTC Industrial Fellowship- PhD Industrial Exposure Fellowship"
+  },
+  {
+    "question": "Do I qualify for the Integrated Social Security Scheme: Old Age Pension if I am a permanent resident of Ladakh, 62 years old, and below the poverty line?",
+    "expected_scheme": "Integrated Social Security Scheme: Old Age Pension"
+  }
+]

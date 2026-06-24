@@ -9,12 +9,12 @@ Runs the eval set against the running API and reports:
 Usage:
     python eval/run_eval.py
 """
+import argparse
 import json
 import time
 
 import requests
 
-API_URL = "http://localhost:8000/query"
 API_URL = "http://localhost:8000/query"
 CACHE_CLEAR_URL = "http://localhost:8000/cache"
 
@@ -44,12 +44,11 @@ def run_pass(eval_set, label):
     return recall, avg_latency
 
 
-def main():
-    with open("eval/eval_set.json") as f:
+def main(eval_set_path: str):
+    with open(eval_set_path) as f:
         eval_set = json.load(f)
 
     requests.delete(CACHE_CLEAR_URL)
-
     print("=== Pass 1 (cold cache) ===")
     run_pass(eval_set, "cold")
 
@@ -58,4 +57,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--eval-set", default="eval/eval_set.json")
+    args = parser.parse_args()
+    main(args.eval_set)
