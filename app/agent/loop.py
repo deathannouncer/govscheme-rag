@@ -82,4 +82,4 @@ def answer_question(question: str) -> dict:
     sources = [
         {"scheme_name": c["scheme_name"], "official_link": c["official_link"]} for c in reranked
     ]
-    return {"answer": answer, "sources": sources}
+    return {"answer": answer, "sources": sources, "context": final_context}

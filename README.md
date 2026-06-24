@@ -87,3 +87,12 @@ one returns the cached answer without touching retrieval at all.
   straightforward, but expect a couple of integration snags (model load
   errors, dimension mismatches) on first run. That's normal for a fresh
   scaffold, not a sign something's fundamentally wrong.
+- Known behavior (not a bug): the answer generation step sometimes
+  under-claims rather than over-claims - e.g. for a scheme whose
+  eligibility text states no acreage limit, it may say it "can't
+  conclude" eligibility rather than inferring that no stated limit means
+  no limit applies. This was caught by an LLM-judge faithfulness eval
+  (see `eval/run_faithfulness_eval.py`) and left as-is deliberately:
+  vague-but-honest is the safer failure direction for this kind of
+  application, compared to confidently fabricating a threshold that was
+  never stated.

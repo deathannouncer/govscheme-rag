@@ -9,14 +9,7 @@ import os
 
 import psycopg2
 from dotenv import load_dotenv
-from pymilvus import (
-    Collection,
-    CollectionSchema,
-    DataType,
-    FieldSchema,
-    connections,
-    utility,
-)
+from pymilvus import DataType, MilvusClient
 from sentence_transformers import SentenceTransformer
 
 load_dotenv()
@@ -29,31 +22,31 @@ COLLECTION_NAME = "scheme_chunks"
 EMBED_DIM = 768  # EmbeddingGemma-300M output dim - verify on the model card if this fails
 
 
-def get_or_create_collection() -> Collection:
-    if utility.has_collection(COLLECTION_NAME):
-        return Collection(COLLECTION_NAME)
+def get_or_create_collection(client: MilvusClient):
+    if client.has_collection(COLLECTION_NAME):
+        return
 
-    fields = [
-        FieldSchema(name="chunk_id", dtype=DataType.INT64, is_primary=True),
-        FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=EMBED_DIM),
-    ]
-    schema = CollectionSchema(fields, description="Scheme chunk embeddings")
-    collection = Collection(COLLECTION_NAME, schema)
-    collection.create_index(
+    schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
+    schema.add_field(field_name="chunk_id", datatype=DataType.INT64, is_primary=True)
+    schema.add_field(field_name="embedding", datatype=DataType.FLOAT_VECTOR, dim=EMBED_DIM)
+
+    index_params = client.prepare_index_params()
+    index_params.add_index(
         field_name="embedding",
-        index_params={
-            "index_type": "HNSW",
-            "metric_type": "COSINE",
-            "params": {"M": 16, "efConstruction": 200},
-        },
+        index_type="HNSW",
+        metric_type="COSINE",
+        params={"M": 16, "efConstruction": 200},
     )
-    return collection
+
+    client.create_collection(
+        collection_name=COLLECTION_NAME, schema=schema, index_params=index_params
+    )
 
 
 def main():
-    connections.connect(host=MILVUS_HOST, port=MILVUS_PORT)
-    collection = get_or_create_collection()
-    collection.load()
+    client = MilvusClient(uri=f"http://{MILVUS_HOST}:{MILVUS_PORT}")
+    get_or_create_collection(client)
+    client.load_collection(COLLECTION_NAME)
 
     model = SentenceTransformer(EMBEDDING_MODEL)
 
@@ -70,7 +63,8 @@ def main():
         texts = [r[1] for r in batch]
 
         vectors = model.encode(texts, normalize_embeddings=True).tolist()
-        collection.insert([ids, vectors])
+        data = [{"chunk_id": cid, "embedding": vec} for cid, vec in zip(ids, vectors)]
+        client.insert(collection_name=COLLECTION_NAME, data=data)
 
         for chunk_id in ids:
             cur.execute(
@@ -79,7 +73,7 @@ def main():
         conn.commit()
         print(f"Embedded {i + len(batch)}/{len(rows)}")
 
-    collection.flush()
+    client.flush(COLLECTION_NAME)
     cur.close()
     conn.close()
     print("Done")

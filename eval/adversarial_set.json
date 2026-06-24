@@ -1,0 +1,34 @@
+[
+  {
+    "question": "What are the benefits of the Pradhan Mantri Antariksh Yatra Yojana for space tourists?",
+    "expected_behavior": "Should state this scheme does not appear to exist in the available information, without inventing benefits for it."
+  },
+  {
+    "question": "Is there a Mukhyamantri Time Travel Assistance Scheme in any Indian state?",
+    "expected_behavior": "Should state no such scheme appears in the available information, without inventing one."
+  },
+  {
+    "question": "Can I apply for the National Digital Bullock Cart Modernization Scheme?",
+    "expected_behavior": "Should state this scheme does not appear in the available information, without fabricating eligibility or application details for it."
+  },
+  {
+    "question": "What's a good recipe for masala chai?",
+    "expected_behavior": "Should decline or state this is outside what it can help with (government schemes), without fabricating an unrelated answer using scheme context."
+  },
+  {
+    "question": "Who won the most recent T20 cricket World Cup?",
+    "expected_behavior": "Should decline or state this is outside what it can help with (government schemes), without fabricating an answer using unrelated scheme context."
+  },
+  {
+    "question": "Can I get PM Kisan benefits if I don't own any agricultural land and live in a city?",
+    "expected_behavior": "PM Kisan is the common name for 'Pradhan Mantri Kisan Samman Nidhi' in this dataset. Should correctly retrieve that scheme despite the colloquial name, and state the person does NOT qualify, since eligibility requires landholding farmer families with cultivable land in their name."
+  },
+  {
+    "question": "Is there a central government scheme called 'Yuva Mangal Setu Yojana'?",
+    "expected_behavior": "Should state no such scheme appears in the available information, without inventing details for a plausible-sounding but nonexistent name."
+  },
+  {
+    "question": "What is the eligibility for the Atal Pension Yojana for non-resident Indians living permanently abroad?",
+    "expected_behavior": "The dataset's eligibility text for this scheme only covers age (18-40) and bank account details - it does not mention NRI or residency status at all. A well-grounded answer should say the available information doesn't address NRI/residency eligibility, rather than confidently asserting yes or no based on outside knowledge not present in the retrieved context."
+  }
+]

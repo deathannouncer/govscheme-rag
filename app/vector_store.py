@@ -1,26 +1,25 @@
-from pymilvus import Collection, connections
+from pymilvus import MilvusClient
 
 from app import config
 
-_connected = False
+_client = None
 
 
-def _ensure_connected():
-    global _connected
-    if not _connected:
-        connections.connect(host=config.MILVUS_HOST, port=config.MILVUS_PORT)
-        _connected = True
+def _get_client() -> MilvusClient:
+    global _client
+    if _client is None:
+        _client = MilvusClient(uri=f"http://{config.MILVUS_HOST}:{config.MILVUS_PORT}")
+    return _client
 
 
 def vector_search(query_vector: list[float], top_k: int) -> list[tuple[int, float]]:
-    _ensure_connected()
-    collection = Collection(config.COLLECTION_NAME)
-    collection.load()
-    results = collection.search(
+    client = _get_client()
+    client.load_collection(config.COLLECTION_NAME)
+    results = client.search(
+        collection_name=config.COLLECTION_NAME,
         data=[query_vector],
         anns_field="embedding",
-        param={"metric_type": "COSINE", "params": {"ef": 64}},
         limit=top_k,
-        output_fields=["chunk_id"],
+        search_params={"metric_type": "COSINE", "params": {"ef": 64}},
     )
-    return [(hit.id, hit.distance) for hit in results[0]]
+    return [(hit["id"], hit["distance"]) for hit in results[0]]

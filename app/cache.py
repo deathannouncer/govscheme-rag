@@ -30,10 +30,13 @@ def lookup(query_vector: list[float]) -> dict | None:
     return None
 
 
-def store(query_vector: list[float], answer: str, sources: list[dict]):
-    entry = json.dumps({"vector": query_vector, "answer": answer, "sources": sources})
+def store(query_vector: list[float], answer: str, sources: list[dict], context: str):
+    entry = json.dumps(
+        {"vector": query_vector, "answer": answer, "sources": sources, "context": context}
+    )
     _client.lpush(CACHE_KEY, entry)
     _client.ltrim(CACHE_KEY, 0, MAX_CACHE_ENTRIES - 1)
+
 
 def clear():
     _client.delete(CACHE_KEY)

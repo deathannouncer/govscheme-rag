@@ -17,13 +17,16 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: list[dict]
+    context: str
     cached: bool
     latency_ms: float
+
 
 @app.delete("/cache")
 def clear_cache():
     cache.clear()
     return {"status": "cleared"}
+
 
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
@@ -36,17 +39,19 @@ def query(req: QueryRequest):
         return QueryResponse(
             answer=cached_entry["answer"],
             sources=cached_entry["sources"],
+            context=cached_entry.get("context", ""),
             cached=True,
             latency_ms=latency_ms,
         )
 
     result = answer_question(req.question)
-    cache.store(probe_vector, result["answer"], result["sources"])
+    cache.store(probe_vector, result["answer"], result["sources"], result["context"])
 
     latency_ms = (time.perf_counter() - start) * 1000
     return QueryResponse(
         answer=result["answer"],
         sources=result["sources"],
+        context=result["context"],
         cached=False,
         latency_ms=latency_ms,
     )
