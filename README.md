@@ -74,11 +74,12 @@ rewrite, so a bad rewrite can't bias relevance scoring either.
   same one.** The original version re-issued an identical search on
   retry, which can never surface anything new - it was latency cost with
   no retrieval benefit.
-- **The answer generator is tuned to under-claim, not over-claim**, when
-  eligibility text doesn't state a limit (e.g. no acreage cap mentioned
-  for a scheme). Caught by the faithfulness eval, kept deliberately:
-  vague-but-honest is the safer failure direction for a benefits chatbot
-  than confidently inventing a threshold that was never stated.
+- **Multi-condition eligibility reasoning is the system's main weak point**,
+  not retrieval. A 28-question faithfulness eval found the local 7B model
+  gets logical inference over retrieved criteria wrong often enough to
+  matter - see "Known limitations" below for specifics. Retrieval recall
+  stays at 1.00 throughout; the right information is consistently found,
+  the model just sometimes draws the wrong conclusion from it.
 
 ---
 
@@ -166,12 +167,12 @@ python eval/run_faithfulness_eval.py
 python eval/run_adversarial_eval.py
 ```
 
-`run_eval.py` defaults to `eval/eval_set.json` (3 hand-written questions).
-A larger, auto-generated set exists at `eval/eval_set_generated.json` (25
-questions, sampled from real scheme data and written by the local LLM) -
-run it with `--eval-set eval/eval_set_generated.json`. **These two have
-not yet been merged into one file** - that's a known TODO, not done yet,
-so don't quote a single "n=28" recall number until they are.
+`eval/eval_set.json` is the combined 28-question set (3 hand-written + 25
+auto-generated from real scheme data) - this is what `run_eval.py` tests
+by default now. The faithfulness and adversarial scripts have so far only
+been run against the smaller hand-written set; re-running them against
+the full 28 is a reasonable next step before relying on those numbers as
+heavily as the recall figure.
 
 Caveat worth keeping in mind: the faithfulness and adversarial judges are
 the same local LLM doing the generation, just prompted differently. That
@@ -188,24 +189,55 @@ cherry-picked number:
 
 | Metric | Result |
 | --- | --- |
-| Retrieval recall, 3 hand-written questions | 1.00, consistent across multiple runs |
-| Retrieval recall, 25 auto-generated questions | 1.00, consistent across two separate runs |
+| Retrieval recall, merged 28-question set (3 hand-written + 25 auto-generated) | 1.00 |
 | Adversarial pass rate (8 questions: fictional schemes, out-of-domain, eligibility traps) | 8/8 |
-| Faithfulness, 3 hand-written questions | 2/3 - the one failure is the documented under-claiming behavior above, not fabrication |
+| Faithfulness, full 28-question set (LLM-judge against actual retrieved context) | 20/28 (0.71) - see "Known limitations" for what the 8 failures actually are |
 | Cold-cache latency (full pipeline, local 7B model on CPU) | ~10s to ~95s per query, varies by question and by run |
-| Warm-cache latency (Redis hit) | ~100ms to ~1s |
-| Cache speedup | Observed between ~75x and ~230x across different runs |
+| Warm-cache latency (Redis hit) | ~100ms to ~1.5s |
+| Cache speedup | Observed between ~55x and ~230x across different runs |
 
-The auto-generated question set skews easier than real usage, since the
-questions are written from the same eligibility text the retriever
+The auto-generated questions (25 of the 28) skew easier than real usage,
+since they're written from the same eligibility text the retriever
 searches over - the 3 hand-written questions (abbreviated names, indirect
-phrasing) are the more realistic stress test of the two.
+phrasing) are the more realistic stress test of the set.
 
 ---
 
 ## Known limitations
 
-- Eval sets not yet merged (see above).
+- **Multi-condition eligibility reasoning is the main weak point**,
+  found via the 28-question faithfulness eval (8 failures, categorized
+  honestly rather than averaged into one number):
+  - *Logical inference errors (3 cases)* - the model gets straightforward
+    inference wrong despite having the right facts. Examples: concluding
+    a student "hasn't passed the previous year's exam" specifically
+    *because* they're currently enrolled in the next grade up (backwards -
+    being in 7th grade implies having passed 6th); failing to match
+    "applicant is a woman" against a context that explicitly lists
+    "women" as one of four eligible priority groups; reading a
+    benefit-capping clause ("assistance availed only once") as a
+    disqualification clause.
+  - *One internally incoherent answer* - walked through all four
+    eligibility criteria, confirmed each was met, then contradicted
+    itself and concluded the person wasn't eligible anyway, based on an
+    age-ceiling concern that didn't apply to their stated age.
+  - *Under-claiming (2 cases)* - hedging despite the context actually
+    answering the question clearly (no acreage cap stated -> "cannot
+    conclude eligibility" instead of inferring no cap applies).
+  - *Over-claiming on a subjective scheme (1 case)* - confidently called
+    someone "likely eligible" for a jury-judged honors scheme whose
+    criteria are qualitative ("outstanding," "wider impact"), which isn't
+    something a threshold check can actually verify.
+  - *One flawed test question* - asked about "this scheme" without
+    naming one, an artifact of the auto-generated eval set rather than a
+    pipeline bug.
+
+  Retrieval recall stayed at 1.00 throughout all of this - the right
+  information was consistently found. The failures are downstream, in
+  how the local 7B model reasons over multi-condition criteria once
+  retrieved. Documented here rather than mitigated for now; a larger
+  model or a chain-of-thought-style answer prompt are the likely next
+  things to try if this needs improving.
 - `official_link` for the Kaggle dataset variant is reconstructed from a
   `slug` field, since that source has no direct link column - best-effort,
   not guaranteed correct for every scheme.
